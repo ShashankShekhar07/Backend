@@ -5,3 +5,7 @@ installed jsonwebtoken to create tokens with secret code
 installed mongooseAggregatePaginate
 referesh token saved in database
 whereas not access token
+installed cloudinary
+installed multer
+nodejs has fs which is used for filehandling
+multer middleware setup
