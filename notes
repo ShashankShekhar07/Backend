@@ -1,0 +1,7 @@
+installed cookie parser
+installed cors
+installed bcrypt for hashing passwords
+installed jsonwebtoken to create tokens with secret code
+installed mongooseAggregatePaginate
+referesh token saved in database
+whereas not access token
