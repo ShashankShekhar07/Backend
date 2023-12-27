@@ -13,11 +13,11 @@ app.use(express.json({
 }))
 app.use(express.urlencoded({extended: true,limit: "16kb"}))
 app.use(express.static("public")) //public  folder for storing assets like images etc
-app.use(cookieParser)
+app.use(cookieParser())
 
 //Router import
 
-import router from './routes/user.routes.js'
-app.use("/api/v1/users",router)
+import userRouter from './routes/user.routes.js'
+app.use("/api/v1/users",userRouter)
 
 export {app}
