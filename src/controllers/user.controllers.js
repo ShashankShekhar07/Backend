@@ -18,14 +18,14 @@ const registerUser = asyncHandler(async (req,res) =>{
     
     //Get User Details
     const {username, fullName,email,password} = req.body
-    console.log("email",email);
-    console.log("password",password);
+    // console.log("email",email);
+    // console.log("password",password);
 
 
     //Validation
-    if(fullName=""){
-        throw new ApiError(400,"Username is not given")
-    }
+    // if(fullName=""){
+    //     throw new ApiError(400,"Username is not given")
+    // }
 
     if(
         [fullName,email,username,password].some((field)=>{ //The some method returns true if at least one element in the array satisfies the provided testing function.
@@ -48,8 +48,12 @@ const registerUser = asyncHandler(async (req,res) =>{
 
     const avatarLocalPath = req.files?.avatar[0].path;
     //files property is from multer such as body is from express
-    console.log(req.files);
-    const coverImageLocalPath = req.files?.coverImage[0].path;
+    // console.log(req.files);
+    let coverImageLocalPath; 
+
+    if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
 
     if(!avatarLocalPath){
         throw new ApiError(400,"Avatar file is necessary")
@@ -67,11 +71,11 @@ const registerUser = asyncHandler(async (req,res) =>{
     //create user object - create entry in db
     // whenever db is asked your only connection is User now
 
-    User.create({
+    const user = await User.create({
         fullName,
         avatar: avatar.url,
         coverImage: coverImage?.url || "",
-        username: username.toLowercase(),
+        username: username.toLowerCase(),
         password,
         email
     })
@@ -98,5 +102,6 @@ const registerUser = asyncHandler(async (req,res) =>{
 //         message: "ok"
 //     })
 })
+
 
 export {registerUser}

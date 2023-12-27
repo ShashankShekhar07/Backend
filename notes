@@ -9,3 +9,7 @@ installed cloudinary
 installed multer
 nodejs has fs which is used for filehandling
 multer middleware setup
+using atlas for mongodb
+using cloudinary for files
+using postman for checking http link
+
