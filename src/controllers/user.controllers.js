@@ -4,6 +4,20 @@ import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+const generateAccessAndRefreshToken = async(userId)=>{
+    try{
+        const user = await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken()
+
+        user.refreshToken = refreshToken //save in user model
+        await user.save({validateBeforeSave: false})
+        return {accessToken,refreshToken}
+    }
+    catch(error){
+        throw new ApiError(500,"Something went wrong while generating refresh and access token")
+    }
+}
 
 const registerUser = asyncHandler(async (req,res) =>{
     // get user details from frontend
@@ -62,7 +76,7 @@ const registerUser = asyncHandler(async (req,res) =>{
     // upload them to cloudinary, avatar
 
     const avatar =await uploadOnCloudinary(avatarLocalPath);
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
     if(!avatar){
         throw new ApiError(400,"Avatar file is necessary")
@@ -103,5 +117,94 @@ const registerUser = asyncHandler(async (req,res) =>{
 //     })
 })
 
+const loginUser= asyncHandler(async(req,res) =>{
+    // req body -> data
+    // username or email
+    //find the user
+    //password check
+    //access and referesh token
+    //send cookie 
 
-export {registerUser}
+    // req body -> data
+    const {email,username,password} = req.body
+
+    // username or email
+    if(!username && !email){
+        throw new ApiError(400,"username or email is required")
+    }
+
+    //find the user
+    const user = await user.findOne({
+        $or: [{username,email}]
+    })
+
+    //User is from mongoose database whereas user is the above information which we require now
+    if(!user){
+        throw new ApiError(401,"Invalid User Credentials")
+    }
+    //password check
+
+    const passwordValid= await user.isPasswordCorrect(password) //ispasswordcorrect middleware we made in user.model.js
+
+    if(!passwordValid){
+        throw new ApiError(401,"Invlaid user credentials")
+    }
+
+    //access and referesh token
+    const {accessToken,refreshToken} = await user.generateAccessAndRefreshToken(user._id)
+
+   //Now we do not want password and refreshtoken to be visible to the user so we call a database query
+   const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+    
+   //send cookie
+   //For cookies only options
+   const options={ //Only modified by Servers
+    httpOnly: true,
+    secure: true
+   }
+
+   return res 
+   .status(200)
+   .cookie("accessToken",accessToken,options)
+   .cookie("refreshToken",refreshToken,options)
+   .json(
+    new ApiResponse(200,
+        { //data
+           user: {
+            loggedInUser,accessToken,refreshToken
+           } 
+        },
+        "User logged in Successfully"
+    )
+   )
+})
+
+const logoutUser = asyncHandler(async(req,res) => {
+    //You need user id for logout button but you can't access using
+    //First verifyjwt will happen because of middleware setup through routes
+    await User.findByIdAndUpdate(
+        req.user._id,
+        {
+            $set: {
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true //if you wanted to add something extra
+        }
+    )
+
+    const options={ //Only modified by Servers
+        httpOnly: true,
+        secure: true
+    }
+
+    return res
+    .status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie("refreshToken",options)
+    .json(new ApiResponse(200,{},"User Logged Out"))
+})
+
+
+export {registerUser,loginUser,logoutUser}
