@@ -408,7 +408,7 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
                 isSubscribed: {
                     $cond: {
                         if: {$in: [req.user?._id,"$subscribers.subscriber"]},
-                        then: true,
+                        //Here subscribers.subscriber is an object and in operator is used to search in an aray or an object                        
                         else: false,
                     }
                 }
@@ -440,6 +440,58 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
         new ApiResponse(200,channel[0],"User channel fetched successfully")
     )
 
+})
+
+
+const getWatchHistory = asyncHandler(async(req,res)=>{
+    const user = await User.aggregate([
+        {
+            $match: {
+                //Mongoose gives a string which it itselves convert while find operation but here we will need to change it
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "WatchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from : "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1,
+                                    }
+                                }
+                            ]
+                        }
+                    },//Here owner returns an array with projected owners
+                    {  //   This makes it return object owner which is easy to manipulate
+                        $addFields: {
+                            owner: {
+                                $first : "$owner"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,user[0].watchHistory,"Watch history fetched successfully")
+    )
 })
 export {registerUser,loginUser,logoutUser,
     refreshAccessToken,changeCurrentPassword,getCurrentUser,
