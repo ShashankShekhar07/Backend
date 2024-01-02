@@ -304,18 +304,18 @@ const updateAccountDetails = asyncHandler(async(req,res) => {
 });
 
 const updateUserAvatar = asyncHandler(async(req,res)=>{
-    const UserAvatarLocalPath = req.file?.path
-    if(!UserAvatarLocalPath){
+    const avatarLocalPath = req.file?.path
+    if(!avatarLocalPath){
         throw new ApiError(400,"No user avatar")
     }
 
-    const avatar = uploadOnCloudinary(UserAvatarLocalPath)
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
 
     if(!avatar.url){
         throw new ApiError(400,"Error while uploading on avatar")
     }
     const user = await User.findByIdAndUpdate(
-        req.user_id,{
+        req.user?._id,{
             $set: {
                 avatar: avatar.url
             }
@@ -344,7 +344,7 @@ const updateCoverImage = asyncHandler(async(req,res)=>{
         throw new ApiError(400,"No cover image uploaded to cloudinary")
     }
 
-    const user= User.findByIdAndUpdate(
+    const user= await User.findByIdAndUpdate(
         req.user?._id,
         {
             $set: {
@@ -409,6 +409,7 @@ const getUserChannelProfile = asyncHandler(async(req,res)=>{
                     $cond: {
                         if: {$in: [req.user?._id,"$subscribers.subscriber"]},
                         //Here subscribers.subscriber is an object and in operator is used to search in an aray or an object                        
+                        then: true,
                         else: false,
                     }
                 }
