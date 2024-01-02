@@ -4,6 +4,7 @@ import { uploadOnCloudinary } from "../utils/Cloudinary.js";
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async(userId)=>{
     try{
@@ -362,8 +363,87 @@ const updateCoverImage = asyncHandler(async(req,res)=>{
     )
 })
 
+//Now we need to calculate the number of people who we have subscribed and who have subscribed us
+//to calculate this first create documents each having a channel and its subscriber
+//So when we want to calculate no of subscribers we will count the no of documents with the channel name
+//whereas when we want no of channels a subscriber have subscribed we will count the number of documents having the given subscriber 
+
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+    const {username} = req.params
+
+    if(!username?.trim()){
+        throw new ApiError(400,"Username is missing")
+    }
+
+    const channel= await User.aggregate([
+        {
+            $match: {
+                username : username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: { //join to calculate no of subscribers by searching the channel name
+                from: "subscriptions", //the Subscription turns into plural
+                localField: "_id",
+                foreignField : "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: { //join to calculate no of channels subscribed by the person
+                from: "subscriptions", //the Subscription turns into plural
+                localField: "_id",
+                foreignField : "subscriber",
+                as: "subscribedTo"
+            }
+        },//Till here we only got the table having subscribers and subscribed to 
+        {
+            $addFields: {
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelsSubscribedTo: {
+                    $size : "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {$in: [req.user?._id,"$subscribers.subscriber"]},
+                        then: true,
+                        else: false,
+                    }
+                }
+            }
+        },
+        {
+            $project :{ //used to show only some stuff
+                fullName: 1,
+                username: 1, // where 1 is used it will get projected
+                subscribersCount: 1,
+                channelsSubscribedTo: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
+            }
+        }
+    ])
+
+    //Now when aggregation is done it returns an array with objects in it 
+    //Here we will only have 1 object that is why we need to return channel[0]
+    if(channel?.length<=0){
+        throw new ApiError(400,"Channel does not exists")
+    }
+        
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200,channel[0],"User channel fetched successfully")
+    )
+
+})
 export {registerUser,loginUser,logoutUser,
     refreshAccessToken,changeCurrentPassword,getCurrentUser,
-    updateAccountDetails,updateCoverImage,updateUserAvatar}
+    updateAccountDetails,updateCoverImage,updateUserAvatar,
+    getUserChannelProfile}
 
 
